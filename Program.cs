@@ -1,14 +1,15 @@
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Builder;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
-var builder = FunctionsApplication.CreateBuilder(args);
+var host = new HostBuilder()
+    .ConfigureFunctionsWebApplication(builder =>
+    {
+        // Add middleware here if needed, or leave empty
+    })
+    .ConfigureServices(services =>
+    {
+        services.AddHttpClient();
+    })
+    .Build();
 
-builder.ConfigureFunctionsWebApplication();
-
-builder.Services
-    .AddApplicationInsightsTelemetryWorkerService()
-    .ConfigureFunctionsApplicationInsights();
-
-builder.Build().Run();
+host.Run();
