@@ -1,67 +1,70 @@
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Azure;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
+using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
-using System.Threading.Tasks;
-
 namespace HttFunc;
 
-public static class EmployeesFunction
+public class EmployeesFunction
 {
-    private static readonly HttpClient client = new HttpClient();
+    private readonly HttpClient _client;
+    private readonly ILogger _logger;
 
-    [FunctionName("GetAllEmployeesFunction")]
-    public static async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req)
+    public EmployeesFunction(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory)
+    {
+        _client = httpClientFactory.CreateClient();
+        _logger = loggerFactory.CreateLogger<EmployeesFunction>();
+    }
+
+
+    [Function("GetAllEmployeesFunction")]
+    public async Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequestData req)
     {
         
         var backendUrl = "https://demoemp-hbgehsgwdygbbgh4.canadacentral-01.azurewebsites.net/api/Employee";
-
+        var response = await _client.GetAsync(backendUrl);
         // Forward request to backend API
-        var response = await client.GetAsync(backendUrl);
-        var content = await response.Content.ReadAsStringAsync();
+        var responseBody = await response.Content.ReadAsStringAsync();
 
-        return new ContentResult
-        {
-            Content = content,
-            ContentType = "application/json",
-            StatusCode = (int)response.StatusCode
-        };
+        var httpResponse = req.CreateResponse((HttpStatusCode)response.StatusCode);
+        httpResponse.Headers.Add("Content-Type", "application/json");
+        await httpResponse.WriteStringAsync(responseBody);
+
+        return httpResponse;
     }
-    [FunctionName("AddEmployeeFunction")]
-    public static async Task<IActionResult> AddEmployee(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "employees")] HttpRequest req)
+    [Function("AddEmployeeFunction")]
+    public async Task<HttpResponseData> AddEmployee(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "employees")] HttpRequestData req)
     {
-        var backendUrl = "https://demoemp-hbgehsgwdygbbgh4.canadacentral-01.azurewebsites.net/api/Employee";
         var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
         var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
 
-        var response = await client.PostAsync(backendUrl, content);
+        var backendUrl = "https://demoemp-hbgehsgwdygbbgh4.canadacentral-01.azurewebsites.net/api/Employee";
+        var response = await _client.PostAsync(backendUrl, content);
         var responseBody = await response.Content.ReadAsStringAsync();
 
-        return new ContentResult
-        {
-            Content = responseBody,
-            ContentType = "application/json",
-            StatusCode = (int)response.StatusCode
-        };
-    }
-    [FunctionName("DeleteEmployeeFunction")]
-    public static async Task<IActionResult> DeleteEmployee(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "employees/{id}")] HttpRequest req, string id)
-    {
-        var backendUrl = $"https://demoemp-hbgehsgwdygbbgh4.canadacentral-01.azurewebsites.net/api//Employee{id}";
-        var response = await client.DeleteAsync(backendUrl);
-        var content = await response.Content.ReadAsStringAsync();
+        var httpResponse = req.CreateResponse((HttpStatusCode)response.StatusCode);
+        httpResponse.Headers.Add("Content-Type", "application/json");
+        await httpResponse.WriteStringAsync(responseBody);
 
-        return new ContentResult
-        {
-            Content = content,
-            ContentType = "application/json",
-            StatusCode = (int)response.StatusCode
-        };
+        return httpResponse;
+    }
+    [Function("DeleteEmployeeFunction")]
+    public async Task<HttpResponseData> DeleteEmployee(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "employees/{id}")] HttpRequestData req,
+        string id)
+    {
+        var backendUrl = $"https://demoemp-hbgehsgwdygbbgh4.canadacentral-01.azurewebsites.net/api/Employee/{id}";
+        var response = await _client.DeleteAsync(backendUrl);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        var httpResponse = req.CreateResponse((HttpStatusCode)response.StatusCode);
+        httpResponse.Headers.Add("Content-Type", "application/json");
+        await httpResponse.WriteStringAsync(responseBody);
+
+        return httpResponse;
     }
 }
