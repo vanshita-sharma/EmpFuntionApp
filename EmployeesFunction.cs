@@ -59,11 +59,15 @@ public class EmployeesFunction
     {
         var backendUrl = $"https://demoemp-hbgehsgwdygbbgh4.canadacentral-01.azurewebsites.net/api/Employee/{id}";
         var response = await _client.DeleteAsync(backendUrl);
-        var responseBody = await response.Content.ReadAsStringAsync();
-
         var httpResponse = req.CreateResponse((HttpStatusCode)response.StatusCode);
-        httpResponse.Headers.Add("Content-Type", "application/json");
-        await httpResponse.WriteStringAsync(responseBody);
+
+        
+        if (response.Content.Headers.ContentLength > 0)
+        {
+            var responseBody = await response.Content.ReadAsStringAsync();
+            httpResponse.Headers.Add("Content-Type", "application/json");
+            await httpResponse.WriteStringAsync(responseBody);
+        }
 
         return httpResponse;
     }
